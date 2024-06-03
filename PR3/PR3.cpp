@@ -127,7 +127,7 @@ bool isLetter(char letter)
     return ((letter >= 'a' && letter <= 'z') || (letter >= 'A' && letter <= 'Z'));
 }
 
-bool isString(string str) 
+bool isString(string& str) 
 {
     for (int i = 0; i < str.length(); i++) {
         if (!isalpha(str[i])) {
@@ -138,9 +138,9 @@ bool isString(string str)
     return true;
 }
 
-bool isNumber(string str) 
+bool isNumber(string& str) 
 {
-    if (str[0] == '-' || isdigit(str[0])) {
+    if ((str[0] == '-' && str.length() > 1) || (isdigit(str[0]))) {
         for (int i = 1; i < str.length(); i++) {
             if (!isdigit(str[i])) {
                 return false;
@@ -253,40 +253,45 @@ string infPost(vector<string>& tokens)
     string post = "";
     StackOp stackOp;
 
+    int j = 1;
     for (int i = 0; i < tokens.size(); i++) {
         if (weight.count(tokens[i])) {
             if (stackOp.top() == "" || weight[tokens[i]] > weight[stackOp.top()] || tokens[i] == "(") {
-                cout << i << ". " << tokens[i] << "Помещаем в стек\n";
+                cout << i+j << ". " << tokens[i] << " Помещаем в стек\n";
                 stackOp.push(tokens[i]);
             }
             else if (tokens[i] == ")") {
                 while (stackOp.top() != "(") {
-                    cout << i << ". " << stackOp.top() << "Помещаем в строку из стека" << "\n";
+                    cout << i+j << ". " << stackOp.top() << " Помещаем в строку из стека" << "\n";
                     post += stackOp.top() + ' ';
                     stackOp.pop();
+                    j++;
                 }
                 stackOp.pop();
             }
             else {
                 while (stackOp.top() != "" && weight[stackOp.top()] >= weight[tokens[i]]) {
-                    cout << i << ". " << stackOp.top() << "Помещаем в строку из стека\n";
+                    cout << i+j << ". " << stackOp.top() << " Помещаем в строку из стека\n";
                     post += stackOp.top() + ' ';
                     stackOp.pop();
+                    j++;
                 }
-                cout << i << ". " << tokens[i] << "Помещаем в стек\n";
+                cout << i+j << ". " << tokens[i] << " Помещаем в стек\n";
                 stackOp.push(tokens[i]);
             }
         }
 
         else if (isString(tokens[i]) || isNumber(tokens[i])) {
-            cout << i << ". " << tokens[i] << "Помещаем в строку\n";
+            cout << i+j << ". " << tokens[i] << " Помещаем в строку\n";
             post += tokens[i] + ' ';
         }
     }
 
+    j += tokens.size();
+
     int end = stackOp.getSize();
     for (int i = 0; i <= end; i++) {
-        cout << i << ". " << stackOp.top() << "Помещаем в строку из стека\n";
+        cout << i+j << ". " << stackOp.top() << " Помещаем в строку из стека\n";
         post += stackOp.top() + ' ';
         stackOp.pop();
     }
@@ -301,11 +306,16 @@ string infPref(vector<string>& tokens)
     vector<string> prefTokens;
     reversedTokens = reverseTokens(tokens);
 
+    cout << "Разворачиваем строку\n";
+    cout << "Алгоритм из инфиксной в постфиксную\n";
+
     pref = infPost(reversedTokens);
     
     prefTokens = tokenizer(pref);
     prefTokens = reverseTokens(prefTokens);
     
+    cout << "Разворачиваем строку\n";
+
     pref = "";
     for (int i = 0; i < prefTokens.size(); i++) {
         pref += prefTokens[i] + ' ';
@@ -320,7 +330,7 @@ bool verifyExpr(vector<string>& expr) {
         if (expr[i] == "(") count++;
         else if (expr[i] == ")") count--;
     }
-    if (expr.empty()) return false;
+    if (expr.empty())  return false;
     if (count != 0) {
         return false;
     }
@@ -357,6 +367,7 @@ int calcPost(vector<string>& tokens, vector<pair<string, int>>& dict)
         if (isString(tokens[i])) {
             if (dict[j].first == tokens[i]) {
                 stackVar.push(dict[j].second);
+                cout << i+1 << ". Кладём " << dict[j].second << " в стек\n";
                 j++;
             }
         }
@@ -365,10 +376,12 @@ int calcPost(vector<string>& tokens, vector<pair<string, int>>& dict)
             stackVar.pop();
             b = stackVar.top();
             stackVar.pop();
+            cout << i + 1 << ". Достаём два верхних элемента стека " << a << " " << b << " и проделываем операцию " << tokens[i] << ". Результат " << calc(a, b, tokens[i]) << " кладём в стек\n";
             stackVar.push(calc(a, b, tokens[i]));
         }
         else if (isNumber(tokens[i])) {
             stackVar.push(stoi(tokens[i]));
+            cout << i + 1 << ". Кладём число " << stoi(tokens[i]) << " в стек\n";
         }
     }
 
@@ -387,11 +400,11 @@ int calcPref(vector<string>& tokens, vector<pair<string, int>>& dict)
             }
         }
         else if (weight.count(tokens[i])) {
-            a = stackVar.top();
-            stackVar.pop();
             b = stackVar.top();
             stackVar.pop();
-            stackVar.push(calc(b, a, tokens[i]));
+            a = stackVar.top();
+            stackVar.pop();
+            stackVar.push(calc(a, b, tokens[i]));
         }
         else if (isNumber(tokens[i])) {
             stackVar.push(stoi(tokens[i]));
@@ -543,14 +556,25 @@ void launch()
         }
 
         else if (command == '7') {
-            break;
+            int res = 0;
+            if (!tokens.empty()) {
+                if (tokensPost.empty()) {
+                    post = infPost(tokens);
+                    tokensPost = tokenizer(post);
+                }
+                res = calcPost(tokensPost, dict);
+                cout << "\nРезультат: " << res << '\n';
+            }
+            else {
+                cout << "Запись ещё не была вычислена\n";
+            }
         }
 
         else if (command == '8') {
             int res = 0;
             if (!tokensPost.empty()) {
                 res = calcPost(tokensPost, dict);
-                cout << res << '\n';
+                cout << "\nРезультат: " << res << '\n';
             }
             else {
                 cout << "Запись ещё не была вычислена\n";
@@ -560,8 +584,8 @@ void launch()
         else if (command == '9') {
             int res = 0;
             if (!tokensPref.empty()) {
-                res = calcPref(tokensPref, dict);
-                cout << res << '\n';
+                res = calcPost(tokensPost, dict);
+                cout << "\nРезультат: " << res << '\n';
             }
             else {
                 cout << "Запись ещё не была вычислена\n";
